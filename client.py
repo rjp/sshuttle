@@ -373,7 +373,7 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     if not bound:
         assert(last_e)
         raise last_e
-    listener.listen(10)
+    listener.listen(socket.SOMAXCONN)
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
