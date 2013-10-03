@@ -1,10 +1,14 @@
 #!/usr/bin/env python
-import sys, os, markdown, re
+import sys
+import os
+import markdown
+import re
 from BeautifulSoup import BeautifulSoup
+
 
 def _split_lines(s):
     return re.findall(r'([^\n]*\n?)', s)
-    
+
 
 class Writer:
     def __init__(self):
@@ -99,9 +103,9 @@ def _clean(s):
 
 
 def _bitlist(tag):
-    if getattr(tag, 'contents', None) == None:
+    if getattr(tag, 'contents', None) is None:
         for i in _split_lines(str(tag)):
-            yield None,_clean(i)
+            yield None, _clean(i)
     else:
         for e in tag:
             name = getattr(e, 'name', None)
@@ -109,14 +113,14 @@ def _bitlist(tag):
                 name = None  # just treat as simple text
             s = _force_string(tag, e)
             if name:
-                yield name,_clean(s)
+                yield name, _clean(s)
             else:
                 for i in _split_lines(s):
-                    yield None,_clean(i)
+                    yield None, _clean(i)
 
 
 def _bitlist_simple(tag):
-    for typ,text in _bitlist(tag):
+    for typ, text in _bitlist(tag):
         if typ and not typ in ['em', 'strong', 'code']:
             raise ValueError('unexpected tag %r inside %r' % (typ, tag.name))
         yield text
@@ -124,7 +128,7 @@ def _bitlist_simple(tag):
 
 def _text(bitlist):
     out = ''
-    for typ,text in bitlist:
+    for typ, text in bitlist:
         if not typ:
             out += text
         elif typ == 'em':
@@ -149,7 +153,7 @@ def text(tag):
 def _boldline(l):
     out = ['']
     last_bold = False
-    for typ,text in l:
+    for typ, text in l:
         nonzero = not not typ
         if nonzero != last_bold:
             last_bold = not last_bold
@@ -165,14 +169,14 @@ def do_definition(tag):
     split = 0
     pre = []
     post = []
-    for typ,text in _bitlist(tag):
+    for typ, text in _bitlist(tag):
         if split:
-            post.append((typ,text))
+            post.append((typ, text))
         elif text.lstrip().startswith(': '):
             split = 1
-            post.append((typ,text.lstrip()[2:].lstrip()))
+            post.append((typ, text.lstrip()[2:].lstrip()))
         else:
-            pre.append((typ,text))
+            pre.append((typ, text))
     _boldline(pre)
     w.write(_text(post))
 
@@ -202,7 +206,7 @@ def do(tag):
     elif name == 'h2':
         macro('.SS', _force_string(tag, tag))
         w.started = True
-    elif name.startswith('h') and len(name)==2:
+    elif name.startswith('h') and len(name) == 2:
         raise ValueError('%r invalid - man page headers must be h1 or h2'
                          % name)
     elif name == 'pre':
@@ -228,14 +232,14 @@ def do(tag):
         do_list(tag)
     else:
         raise ValueError('non-man-compatible html tag %r' % name)
-        
-    
-PROD='Untitled'
-VENDOR='Vendor Name'
-SECTION='9'
-GROUPNAME='User Commands'
-DATE=''
-AUTHOR=''
+
+
+PROD = 'Untitled'
+VENDOR = 'Vendor Name'
+SECTION = '9'
+GROUPNAME = 'User Commands'
+DATE = ''
+AUTHOR = ''
 
 lines = []
 if len(sys.argv) > 1:

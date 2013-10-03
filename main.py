@@ -1,5 +1,13 @@
-import sys, os, re
-import helpers, options, client, server, firewall, hostwatch
+import sys
+import os
+import re
+
+import helpers
+import options
+import client
+import server
+import firewall
+import hostwatch
 import compat.ssubprocess as ssubprocess
 from helpers import *
 
@@ -12,17 +20,17 @@ def parse_subnets(subnets_str):
         m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
         if not m:
             raise Fatal('%r is not a valid IP subnet format' % s)
-        (a,b,c,d,width) = m.groups()
-        (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
-        if width == None:
+        (a, b, c, d, width) = m.groups()
+        (a, b, c, d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
+        if width is None:
             width = 32
         else:
             width = int(width)
         if a > 255 or b > 255 or c > 255 or d > 255:
-            raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+            raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
         if width > 32:
             raise Fatal('*/%d is greater than the maximum of 32' % width)
-        subnets.append(('%d.%d.%d.%d' % (a,b,c,d), width))
+        subnets.append(('%d.%d.%d.%d' % (a, b, c, d), width))
     return subnets
 
 
@@ -32,16 +40,16 @@ def parse_ipport(s):
     m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
     if not m:
         raise Fatal('%r is not a valid IP:port format' % s)
-    (a,b,c,d,port) = m.groups()
-    (a,b,c,d,port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
-                      int(port or 0))
+    (a, b, c, d, port) = m.groups()
+    (a, b, c, d, port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
+                          int(port or 0))
     if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
     if port > 65535:
         raise Fatal('*:%d is greater than the maximum of 65535' % port)
-    if a == None:
+    if a is None:
         a = b = c = d = 0
-    return ('%d.%d.%d.%d' % (a,b,c,d), port)
+    return ('%d.%d.%d.%d' % (a, b, c, d), port)
 
 
 optspec = """
@@ -102,8 +110,8 @@ try:
             o.fatal('at least one subnet (or -N) expected')
         includes = extra
         excludes = ['127.0.0.0/8']
-        for k,v in flags:
-            if k in ('-x','--exclude'):
+        for k, v in flags:
+            if k in ('-x', '--exclude'):
                 excludes.append(v)
             if k in ('-X', '--exclude-from'):
                 excludes += open(v).read().split()

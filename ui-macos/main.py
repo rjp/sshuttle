@@ -1,6 +1,11 @@
-import sys, os, pty
+import sys
+import os
+import pty
 from AppKit import *
-import my, models, askpass
+import my
+import models
+import askpass
+
 
 def sshuttle_args(host, auto_nets, auto_hosts, dns, nets, debug,
                   no_latency_control):
@@ -25,6 +30,7 @@ class _Callback(NSObject):
         self = super(_Callback, self).init()
         self.func = func
         return self
+
     def func_(self, obj):
         return self.func(obj)
 
@@ -49,7 +55,7 @@ class Runner:
         self.logfunc('\nConnecting to %s.\n' % self.serverobj.host())
         print 'will run: %r' % argv
         self.serverobj.setConnected_(False)
-        pid,fd = pty.fork()
+        pid, fd = pty.fork()
         if pid == 0:
             # child
             try:
@@ -62,7 +68,7 @@ class Runner:
         # parent
         self.pid = pid
         self.file = NSFileHandle.alloc()\
-               .initWithFileDescriptor_closeOnDealloc_(fd, True)
+            .initWithFileDescriptor_closeOnDealloc_(fd, True)
         self.cb = Callback(self.gotdata)
         NSNotificationCenter.defaultCenter()\
             .addObserver_selector_name_object_(self.cb.obj, self.cb.sel,
@@ -73,16 +79,16 @@ class Runner:
         self.wait()
 
     def _try_wait(self, options):
-        if self.rv == None and self.pid > 0:
-            pid,code = os.waitpid(self.pid, options)
+        if self.rv is None and self.pid > 0:
+            pid, code = os.waitpid(self.pid, options)
             if pid == self.pid:
                 if os.WIFEXITED(code):
                     self.rv = os.WEXITSTATUS(code)
                     if self.rv == 111:
                         NSRunAlertPanel('Sshuttle',
-                            'Please restart your computer to finish '
-                            'installing Sshuttle.',
-                            'Restart Later', None, None)
+                                    'Please restart your computer to finish '
+                                    'installing Sshuttle.',
+                                    'Restart Later', None, None)
                 else:
                     self.rv = -os.WSTOPSIG(code)
                 self.serverobj.setConnected_(False)
@@ -96,14 +102,14 @@ class Runner:
         while rv is None:
             self.gotdata(None)
             rv = self._try_wait(os.WNOHANG)
-        
+
     def poll(self):
         return self._try_wait(os.WNOHANG)
 
     def kill(self):
         assert(self.pid > 0)
         print 'killing: pid=%r rv=%r' % (self.pid, self.rv)
-        if self.rv == None:
+        if self.rv is None:
             self.logfunc('Disconnecting from %s.\n' % self.serverobj.host())
             os.kill(self.pid, 15)
             self.wait()
@@ -131,7 +137,7 @@ class Runner:
 
 class SshuttleApp(NSObject):
     def initialize(self):
-        d = my.PList('UserDefaults') 
+        d = my.PList('UserDefaults')
         my.Defaults().registerDefaults_(d)
 
 
@@ -145,7 +151,7 @@ class SshuttleController(NSObject):
     serversController = objc.IBOutlet()
     logField = objc.IBOutlet()
     latencyControlField = objc.IBOutlet()
-    
+
     servers = []
     conns = {}
 
@@ -153,12 +159,14 @@ class SshuttleController(NSObject):
         host = server.host()
         print 'connecting %r' % host
         self.fill_menu()
+
         def logfunc(msg):
             print 'log! (%d bytes)' % len(msg)
             self.logField.textStorage()\
                 .appendAttributedString_(NSAttributedString.alloc()\
                                          .initWithString_(msg))
             self.logField.didChangeText()
+
         def promptfunc(prompt):
             print 'prompt! %r' % prompt
             return askpass.askpass(prompt)
@@ -172,12 +180,12 @@ class SshuttleController(NSObject):
             manual_nets = []
         noLatencyControl = (server.latencyControl() != models.LAT_INTERACTIVE)
         conn = Runner(sshuttle_args(host,
-                                    auto_nets = nets_mode == models.NET_AUTO,
-                                    auto_hosts = server.autoHosts(),
-                                    dns = server.useDns(),
-                                    nets = manual_nets,
-                                    debug = self.debugField.state(),
-                                    no_latency_control = noLatencyControl),
+                                    auto_nets=nets_mode == models.NET_AUTO,
+                                    auto_hosts=server.autoHosts(),
+                                    dns=server.useDns(),
+                                    nets=manual_nets,
+                                    debug=self.debugField.state(),
+                                    no_latency_control=noLatencyControl),
                       logfunc=logfunc, promptfunc=promptfunc,
                       serverobj=server)
         self.conns[host] = conn
@@ -190,8 +198,8 @@ class SshuttleController(NSObject):
             conn.kill()
         self.fill_menu()
         self.logField.textStorage().setAttributedString_(
-                        NSAttributedString.alloc().initWithString_(''))
-    
+            NSAttributedString.alloc().initWithString_(''))
+
     @objc.IBAction
     def cmd_connect(self, sender):
         server = sender.representedObject()
@@ -221,6 +229,7 @@ class SshuttleController(NSObject):
             it.setRepresentedObject_(obj)
             it.setTarget_(self)
             it.setAction_(func)
+
         def addnote(name):
             additem(name, None, None)
 
@@ -279,8 +288,9 @@ class SshuttleController(NSObject):
         sl = []
         for s in l:
             host = s.get('host', None)
-            if not host: continue
-            
+            if not host:
+                continue
+
             nets = s.get('nets', [])
             nl = []
             for n in nets:
@@ -290,7 +300,7 @@ class SshuttleController(NSObject):
                 net.setSubnet_(subnet)
                 net.setWidth_(width)
                 nl.append(net)
-            
+
             autoNets = s.get('autoNets', models.NET_AUTO)
             autoHosts = s.get('autoHosts', True)
             useDns = s.get('useDns', autoNets == models.NET_ALL)
@@ -310,11 +320,13 @@ class SshuttleController(NSObject):
         l = []
         for s in self.servers:
             host = s.host()
-            if not host: continue
+            if not host:
+                continue
             nets = []
             for n in s.nets():
                 subnet = n.subnet()
-                if not subnet: continue
+                if not subnet:
+                    continue
                 nets.append((subnet, n.width()))
             d = dict(host=s.host(),
                      nets=nets,
@@ -360,9 +372,9 @@ class SshuttleController(NSObject):
         statusitem.setHighlightMode_(True)
         statusitem.setMenu_(self.menu)
         self.fill_menu()
-        
+
         models.configchange_callback = my.DelayedCallback(self.save_servers)
-        
+
         def sc(server):
             if server.wantConnect():
                 self._connect(server)

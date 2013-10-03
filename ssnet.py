@@ -1,9 +1,12 @@
-import struct, socket, errno, select
+import struct
+import socket
+import errno
+import select
 if not globals().get('skip_imports'):
     from helpers import *
 
 MAX_CHANNEL = 65535
-    
+
 # these don't exist in the socket module in python 2.3!
 SHUT_RD = 0
 SHUT_WR = 1
@@ -86,6 +89,8 @@ def _try_peername(sock):
 
 
 _swcount = 0
+
+
 class SockWrapper:
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
         global _swcount
@@ -181,7 +186,7 @@ class SockWrapper:
             debug2('%r: done reading\n' % self)
             self.shut_read = True
             #self.rsock.shutdown(SHUT_RD)  # doesn't do anything anyway
-        
+
     def nowrite(self):
         if not self.shut_write:
             debug2('%r: done writing\n' % self)
@@ -209,7 +214,7 @@ class SockWrapper:
                 # unexpected error... stream is dead
                 self.seterr('uwrite: %s' % e)
                 return 0
-        
+
     def write(self, buf):
         assert(buf)
         return self.uwrite(buf)
@@ -224,7 +229,7 @@ class SockWrapper:
             return _nb_clean(os.read, self.rsock.fileno(), 65536)
         except OSError, e:
             self.seterr('uread: %s' % e)
-            return '' # unexpected error... we'll call it EOF
+            return ''  # unexpected error... we'll call it EOF
 
     def fill(self):
         if self.buf:
@@ -246,7 +251,7 @@ class SockWrapper:
 
 
 class Handler:
-    def __init__(self, socks = None, callback = None):
+    def __init__(self, socks=None, callback=None):
         self.ok = True
         self.socks = socks or []
         if callback:
@@ -258,7 +263,7 @@ class Handler:
 
     def callback(self):
         log('--no callback defined-- %r\n' % self)
-        (r,w,x) = select.select(self.socks, [], [], 0)
+        (r, w, x) = select.select(self.socks, [], [], 0)
         for s in r:
             v = s.recv(4096)
             if not v:
@@ -275,9 +280,11 @@ class Proxy(Handler):
         self.wrap2 = wrap2
 
     def pre_select(self, r, w, x):
-        if self.wrap1.shut_write: self.wrap2.noread()
-        if self.wrap2.shut_write: self.wrap1.noread()
-        
+        if self.wrap1.shut_write:
+            self.wrap2.noread()
+        if self.wrap2.shut_write:
+            self.wrap1.noread()
+
         if self.wrap1.connect_to:
             _add(w, self.wrap1.rsock)
         elif self.wrap1.buf:
@@ -344,7 +351,7 @@ class Mux(Handler):
         for b in self.outbuf:
             total += len(b)
         return total
-            
+
     def check_fullness(self):
         if self.fullness > 32768:
             if not self.too_full:
@@ -355,20 +362,20 @@ class Mux(Handler):
         #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
         #    ob.append(c)
         #log('outbuf: %d %r\n' % (self.amount_queued(), ob))
-        
+
     def send(self, channel, cmd, data):
         data = str(data)
         assert(len(data) <= 65535)
         p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
-               % (channel, cmd_to_name.get(cmd,hex(cmd)),
+               % (channel, cmd_to_name.get(cmd, hex(cmd)),
                   len(data), self.fullness))
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
-        debug2('<  channel=%d cmd=%s len=%d\n' 
-               % (channel, cmd_to_name.get(cmd,hex(cmd)), len(data)))
+        debug2('<  channel=%d cmd=%s len=%d\n'
+               % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
@@ -403,8 +410,8 @@ class Mux(Handler):
         else:
             callback = self.channels.get(channel)
             if not callback:
-                log('warning: closed channel %d got cmd=%s len=%d\n' 
-                       % (channel, cmd_to_name.get(cmd,hex(cmd)), len(data)))
+                log('warning: closed channel %d got cmd=%s len=%d\n'
+                    % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
             else:
                 callback(cmd, data)
 
@@ -425,7 +432,7 @@ class Mux(Handler):
         except OSError, e:
             raise Fatal('other end: %r' % e)
         #log('<<< %r\n' % b)
-        if b == '': # EOF
+        if b == '':  # EOF
             self.ok = False
         if b:
             self.inbuf += b
@@ -436,7 +443,7 @@ class Mux(Handler):
         #     % (self.want, len(self.inbuf), self.inbuf))
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
-                (s1,s2,channel,cmd,datalen) = \
+                (s1, s2, channel, cmd, datalen) = \
                     struct.unpack('!ccHHH', self.inbuf[:HDR_LEN])
                 assert(s1 == 'S')
                 assert(s2 == 'S')
@@ -455,7 +462,7 @@ class Mux(Handler):
             _add(w, self.wsock)
 
     def callback(self):
-        (r,w,x) = select.select([self.rsock], [self.wsock], [], 0)
+        (r, w, x) = select.select([self.rsock], [self.wsock], [], 0)
         if self.rsock in r:
             self.handle()
         if self.outbuf and self.wsock in w:
@@ -476,7 +483,7 @@ class MuxWrapper(SockWrapper):
         SockWrapper.__del__(self)
 
     def __repr__(self):
-        return 'SW%r:Mux#%d' % (self.peername,self.channel)
+        return 'SW%r:Mux#%d' % (self.peername, self.channel)
 
     def noread(self):
         if not self.shut_read:
@@ -509,7 +516,7 @@ class MuxWrapper(SockWrapper):
 
     def uread(self):
         if self.shut_read:
-            return '' # EOF
+            return ''  # EOF
         else:
             return None  # no data available right now
 
@@ -521,7 +528,7 @@ class MuxWrapper(SockWrapper):
         elif cmd == CMD_DATA:
             self.buf.append(data)
         else:
-            raise Exception('unknown command %d (%d bytes)' 
+            raise Exception('unknown command %d (%d bytes)'
                             % (cmd, len(data)))
 
 
@@ -530,8 +537,8 @@ def connect_dst(ip, port):
     outsock = socket.socket()
     outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
     return SockWrapper(outsock, outsock,
-                       connect_to = (ip,port),
-                       peername = '%s:%d' % (ip,port))
+                       connect_to=(ip, port),
+                       peername='%s:%d' % (ip, port))
 
 
 def runonce(handlers, mux):
@@ -543,13 +550,13 @@ def runonce(handlers, mux):
         handlers.remove(h)
 
     for s in handlers:
-        s.pre_select(r,w,x)
-    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n' 
-            % (len(handlers), _fds(r), _fds(w), _fds(x),
-               mux.fullness, mux.too_full))
-    (r,w,x) = select.select(r,w,x)
-    debug2('  Ready: %d r=%r w=%r x=%r\n' 
-        % (len(handlers), _fds(r), _fds(w), _fds(x)))
+        s.pre_select(r, w, x)
+    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
+           % (len(handlers), _fds(r), _fds(w), _fds(x), mux.fullness,
+              mux.too_full))
+    (r, w, x) = select.select(r, w, x)
+    debug2('  Ready: %d r=%r w=%r x=%r\n'
+           % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r+w+x
     did = {}
     for h in handlers:

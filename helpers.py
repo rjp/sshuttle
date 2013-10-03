@@ -1,7 +1,11 @@
-import sys, os, socket, errno
+import sys
+import os
+import socket
+import errno
 
 logprefix = ''
 verbose = 0
+
 
 def log(s):
     try:
@@ -13,13 +17,16 @@ def log(s):
         # our tty closes.  That sucks, but it's no reason to abort the program.
         pass
 
+
 def debug1(s):
     if verbose >= 1:
         log(s)
 
+
 def debug2(s):
     if verbose >= 2:
         log(s)
+
 
 def debug3(s):
     if verbose >= 3:
@@ -31,6 +38,8 @@ class Fatal(Exception):
 
 
 EXITCODE_NEEDS_REBOOT = 111
+
+
 class FatalNeedsReboot(Fatal):
     pass
 
@@ -61,7 +70,7 @@ def resolvconf_random_nameserver():
         return l[0]
     else:
         return '127.0.0.1'
-    
+
 
 def islocal(ip):
     sock = socket.socket()

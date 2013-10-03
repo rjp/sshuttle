@@ -1,4 +1,8 @@
-import time, socket, re, select, errno
+import time
+import socket
+import re
+import select
+import errno
 if not globals().get('skip_imports'):
     import compat.ssubprocess as ssubprocess
     import helpers
@@ -6,7 +10,7 @@ if not globals().get('skip_imports'):
 
 POLL_TIME = 60*15
 NETSTAT_POLL_TIME = 30
-CACHEFILE=os.path.expanduser('~/.sshuttle.hosts')
+CACHEFILE = os.path.expanduser('~/.sshuttle.hosts')
 
 
 _nmb_ok = True
@@ -28,7 +32,7 @@ def write_host_cache():
     tmpname = '%s.%d.tmp' % (CACHEFILE, os.getpid())
     try:
         f = open(tmpname, 'wb')
-        for name,ip in sorted(hostnames.items()):
+        for name, ip in sorted(hostnames.items()):
             f.write('%s,%s\n' % (name, ip))
         f.close()
         os.rename(tmpname, CACHEFILE)
@@ -50,7 +54,7 @@ def read_host_cache():
     for line in f:
         words = line.strip().split(',')
         if len(words) == 2:
-            (name,ip) = words
+            (name, ip) = words
             name = re.sub(r'[^-\w\.]', '-', name).strip()
             ip = re.sub(r'[^0-9.]', '', ip).strip()
             if name and ip:
@@ -65,7 +69,7 @@ def found_host(full_hostname, ip):
 
 
 def _insert_host(hostname, ip):
-    if (ip.startswith('127.') or ip.startswith('255.') 
+    if (ip.startswith('127.') or ip.startswith('255.')
         or hostname == 'localhost'):
         return
     oldip = hostnames.get(hostname)
@@ -128,7 +132,7 @@ def _check_netstat():
     for ip in re.findall(r'\d+\.\d+\.\d+\.\d+', content):
         debug3('<    %s\n' % ip)
         check_host(ip)
-        
+
 
 def _check_smb(hostname):
     return
@@ -233,13 +237,13 @@ def check_workgroup(hostname):
 
 
 def _enqueue(op, *args):
-    t = (op,args)
-    if queue.get(t) == None:
+    t = (op, args)
+    if queue.get(t) is None:
         queue[t] = 0
 
 
 def _stdin_still_ok(timeout):
-    r,w,x = select.select([sys.stdin.fileno()], [], [], timeout)
+    r, w, x = select.select([sys.stdin.fileno()], [], [], timeout)
     if r:
         b = os.read(sys.stdin.fileno(), 4096)
         if not b:
@@ -254,7 +258,7 @@ def hw_main(seed_hosts):
         helpers.logprefix = 'hostwatch: '
 
     read_host_cache()
-        
+
     _enqueue(_check_etc_hosts)
     _enqueue(_check_netstat)
     check_host('localhost')
@@ -266,8 +270,8 @@ def hw_main(seed_hosts):
 
     while 1:
         now = time.time()
-        for t,last_polled in queue.items():
-            (op,args) = t
+        for t, last_polled in queue.items():
+            (op, args) = t
             if not _stdin_still_ok(0):
                 break
             maxtime = POLL_TIME
@@ -280,7 +284,7 @@ def hw_main(seed_hosts):
                 sys.stdout.flush()
             except IOError:
                 break
-                
+
         # FIXME: use a smarter timeout based on oldest last_polled
         if not _stdin_still_ok(1):
             break

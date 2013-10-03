@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-import sys, os, socket, select, struct, time
+import sys
+import os
+import socket
+import select
+import struct
+import time
 
 listener = socket.socket()
 listener.bind(('127.0.0.1', 0))
@@ -34,11 +39,11 @@ while 1:
     else:
         r = [listener]+servers+clients
     print 'select(%d)' % len(r)
-    r,w,x = select.select(r, [], [], 5)
+    r, w, x = select.select(r, [], [], 5)
     assert(r)
     for i in r:
         if i == listener:
-            s,addr = listener.accept()
+            s, addr = listener.accept()
             servers.append(s)
         elif i in servers:
             b = i.recv(4096)

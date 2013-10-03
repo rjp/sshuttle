@@ -1,6 +1,12 @@
-import re, errno, socket, select, signal, struct
+import re
+import errno
+import socket
+import select
+import signal
+import struct
 import compat.ssubprocess as ssubprocess
-import helpers, ssyslog
+import helpers
+import ssyslog
 from helpers import *
 
 # python doesn't have a definition for this
@@ -30,7 +36,7 @@ def _call(argv):
 
 def ipt_chain_exists(name):
     argv = ['iptables', '-t', 'nat', '-nL']
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     for line in p.stdout:
         if line.startswith('Chain %s ' % name):
             return True
@@ -45,6 +51,8 @@ def ipt(*args):
 
 
 _no_ttl_module = False
+
+
 def ipt_ttl(*args):
     global _no_ttl_module
     if not _no_ttl_module:
@@ -62,7 +70,6 @@ def ipt_ttl(*args):
             _no_ttl_module = True
     else:
         ipt(*args)
-
 
 
 # We name the chain based on the transproxy port number so that it's possible
@@ -92,17 +99,17 @@ def do_iptables(port, dnsport, subnets):
         # to least-specific, and at any given level of specificity, we want
         # excludes to come first.  That's why the columns are in such a non-
         # intuitive order.
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for swidth, sexclude, snet in sorted(subnets, reverse=True):
             if sexclude:
                 ipt('-A', chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-p', 'tcp')
             else:
                 ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                        '--dest', '%s/%s' % (snet,swidth),
+                        '--dest', '%s/%s' % (snet, swidth),
                         '-p', 'tcp',
                         '--to-ports', str(port))
-                
+
     if dnsport:
         nslist = resolvconf_nameservers()
         for ip in nslist:
@@ -115,7 +122,7 @@ def do_iptables(port, dnsport, subnets):
 
 def ipfw_rule_exists(n):
     argv = ['ipfw', 'list']
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     found = False
     for line in p.stdout:
         if line.startswith('%05d ' % n):
@@ -132,12 +139,14 @@ def ipfw_rule_exists(n):
 
 
 _oldctls = {}
+
+
 def _fill_oldctls(prefix):
     argv = ['sysctl', prefix]
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     for line in p.stdout:
         assert(line[-1] == '\n')
-        (k,v) = line[:-1].split(': ', 1)
+        (k, v) = line[:-1].split(': ', 1)
         _oldctls[k] = v
     rv = p.wait()
     if rv:
@@ -148,10 +157,12 @@ def _fill_oldctls(prefix):
 
 KERNEL_FLAGS_PATH = '/Library/Preferences/SystemConfiguration/com.apple.Boot'
 KERNEL_FLAGS_NAME = 'Kernel Flags'
+
+
 def _defaults_read_kernel_flags():
     argv = ['defaults', 'read', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME]
     debug1('>> %s\n' % ' '.join(argv))
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     flagstr = p.stdout.read().strip()
     rv = p.wait()
     if rv:
@@ -167,7 +178,6 @@ def _defaults_write_kernel_flags(flags):
     _call(argv)
     argv = ['plutil', '-convert', 'xml1', KERNEL_FLAGS_PATH + '.plist']
     _call(argv)
-    
 
 
 def defaults_write_kernel_flag(name, val):
@@ -185,10 +195,12 @@ def defaults_write_kernel_flag(name, val):
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
-    return ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
+    return ssubprocess.call(argv, stdout=open('/dev/null', 'w'))
 
 
 _changedctls = []
+
+
 def sysctl_set(name, val, permanent=False):
     PREFIX = 'net.inet.ip'
     assert(name.startswith(PREFIX + '.'))
@@ -230,9 +242,11 @@ def _udp_repack(p, src, dst):
 
 
 _real_dns_server = [None]
+
+
 def _handle_diversion(divertsock, dnsport):
-    p,tag = divertsock.recvfrom(4096)
-    src,dst = _udp_unpack(p)
+    p, tag = divertsock.recvfrom(4096)
+    src, dst = _udp_unpack(p)
     debug3('got diverted packet from %r to %r\n' % (src, dst))
     if dst[1] == 53:
         # outgoing DNS
@@ -248,7 +262,7 @@ def _handle_diversion(divertsock, dnsport):
         assert(0)
     newp = _udp_repack(p, src, dst)
     divertsock.sendto(newp, tag)
-    
+
 
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
@@ -309,15 +323,15 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets:
         # create new subnet entries
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for swidth, sexclude, snet in sorted(subnets, reverse=True):
             if sexclude:
                 ipfw('add', sport, 'skipto', xsport,
                      'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth))
+                     'from', 'any', 'to', '%s/%s' % (snet, swidth))
             else:
                 ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
                      'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                     'from', 'any', 'to', '%s/%s' % (snet, swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
     # This part is much crazier than it is on Linux, because MacOS (at least
@@ -352,7 +366,7 @@ def do_ipfw(port, dnsport, subnets):
     if dnsport:
         divertsock = socket.socket(socket.AF_INET, socket.SOCK_RAW,
                                    IPPROTO_DIVERT)
-        divertsock.bind(('0.0.0.0', port)) # IP field is ignored
+        divertsock.bind(('0.0.0.0', port))  # IP field is ignored
 
         nslist = resolvconf_nameservers()
         for ip in nslist:
@@ -369,14 +383,14 @@ def do_ipfw(port, dnsport, subnets):
 
         def do_wait():
             while 1:
-                r,w,x = select.select([sys.stdin, divertsock], [], [])
+                r, w, x = select.select([sys.stdin, divertsock], [], [])
                 if divertsock in r:
                     _handle_diversion(divertsock, dnsport)
                 if sys.stdin in r:
                     return
     else:
         do_wait = None
-        
+
     return do_wait
 
 
@@ -389,10 +403,12 @@ def program_exists(name):
 
 
 hostmap = {}
+
+
 def rewrite_etc_hosts(port):
-    HOSTSFILE='/etc/hosts'
-    BAKFILE='%s.sbak' % HOSTSFILE
-    APPEND='# sshuttle-firewall-%d AUTOCREATED' % port
+    HOSTSFILE = '/etc/hosts'
+    BAKFILE = '%s.sbak' % HOSTSFILE
+    APPEND = '# sshuttle-firewall-%d AUTOCREATED' % port
     old_content = ''
     st = None
     try:
@@ -411,8 +427,8 @@ def rewrite_etc_hosts(port):
         if line.find(APPEND) >= 0:
             continue
         f.write('%s\n' % line)
-    for (name,ip) in sorted(hostmap.items()):
-        f.write('%-30s %s\n' % ('%s %s' % (ip,name), APPEND))
+    for (name, ip) in sorted(hostmap.items()):
+        f.write('%-30s %s\n' % ('%s %s' % (ip, name), APPEND))
     f.close()
 
     if st:
@@ -437,7 +453,7 @@ def _mask(ip, width):
 
 
 def ip_in_subnets(ip, subnets):
-    for swidth,sexclude,snet in sorted(subnets, reverse=True):
+    for swidth, sexclude, snet in sorted(subnets, reverse=True):
         if _mask(snet, swidth) == _mask(ip, swidth):
             return not sexclude
     return False
@@ -508,17 +524,17 @@ def main(port, dnsport, syslog):
         elif line == 'GO\n':
             break
         try:
-            (width,exclude,ip) = line.strip().split(',', 2)
+            (width, exclude, ip) = line.strip().split(',', 2)
         except:
             raise Fatal('firewall: expected route or GO but got %r' % line)
         subnets.append((int(width), bool(int(exclude)), ip))
-        
+
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
             do_wait = do_it(port, dnsport, subnets)
             sys.stdout.write('STARTED\n')
-        
+
         try:
             sys.stdout.flush()
         except IOError:
@@ -530,10 +546,11 @@ def main(port, dnsport, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            if do_wait: do_wait()
+            if do_wait:
+                do_wait()
             line = sys.stdin.readline(128)
             if line.startswith('HOST '):
-                (name,ip) = line[5:].strip().split(',', 1)
+                (name, ip) = line[5:].strip().split(',', 1)
                 if ip_in_subnets(ip, subnets):
                     hostmap[name] = ip
                     rewrite_etc_hosts(port)

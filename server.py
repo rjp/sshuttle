@@ -1,6 +1,14 @@
-import re, struct, socket, select, traceback, time
+import re
+import struct
+import socket
+import select
+import traceback
+import time
+
 if not globals().get('skip_imports'):
-    import ssnet, helpers, hostwatch
+    import ssnet
+    import helpers
+    import hostwatch
     import compat.ssubprocess as ssubprocess
     from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
     from helpers import *
@@ -12,7 +20,8 @@ def _ipmatch(ipstr):
     # Regex to check that ipstr is formatted like an IPv4 address
     m = re.match('^(\d+)' + '(\.\d+)?' * 3 + '(?:/(\d+))?$', ipstr)
     if m:
-        # If the network prefix width is specified, use it. Otherwise, assume 32
+        # If the network prefix width is specified, use it.
+        # Otherwise, assume 32
         if '/' in ipstr:
             ips, width = ipstr.split('/')
             width = int(width)
@@ -40,8 +49,8 @@ def _maskbits(netmask):
         if netmask[0] & shl(1, i):
             return 32-i
     return 0
-    
-    
+
+
 def _list_routes():
     argv = ['netstat', '-rn']
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
@@ -65,9 +74,9 @@ def _list_routes():
 
 def list_routes():
     l = []
-    for (ip,width) in _list_routes():
+    for (ip, width) in _list_routes():
         if not ip.startswith('0.') and not ip.startswith('127.'):
-            l.append((ip,width))
+            l.append((ip, width))
     return l
 
 
@@ -77,7 +86,7 @@ def _exc_dump():
 
 
 def start_hostwatch(seed_hosts):
-    s1,s2 = socket.socketpair()
+    s1, s2 = socket.socketpair()
     pid = os.fork()
     if not pid:
         # child
@@ -95,7 +104,7 @@ def start_hostwatch(seed_hosts):
         finally:
             os._exit(rv)
     s1.close()
-    return pid,s2
+    return pid, s2
 
 
 class Hostwatch:
@@ -169,7 +178,7 @@ def main():
     debug1('available routes:\n')
     for r in routes:
         debug1('  %s/%d\n' % r)
-        
+
     # synchronization header
     sys.stdout.write('\0\0SSHUTTLE0001')
     sys.stdout.flush()
@@ -187,7 +196,7 @@ def main():
 
     hw = Hostwatch()
     hw.leftover = ''
-        
+
     def hostwatch_ready():
         assert(hw.pid)
         content = hw.sock.recv(4096)
@@ -205,19 +214,20 @@ def main():
 
     def got_host_req(data):
         if not hw.pid:
-            (hw.pid,hw.sock) = start_hostwatch(data.strip().split())
-            handlers.append(Handler(socks = [hw.sock],
-                                    callback = hostwatch_ready))
+            (hw.pid, hw.sock) = start_hostwatch(data.strip().split())
+            handlers.append(Handler(socks=[hw.sock],
+                                    callback=hostwatch_ready))
     mux.got_host_req = got_host_req
 
     def new_channel(channel, data):
-        (dstip,dstport) = data.split(',', 1)
+        (dstip, dstport) = data.split(',', 1)
         dstport = int(dstport)
-        outwrap = ssnet.connect_dst(dstip,dstport)
+        outwrap = ssnet.connect_dst(dstip, dstport)
         handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
     mux.new_channel = new_channel
 
     dnshandlers = {}
+
     def dns_req(channel, data):
         debug2('Incoming DNS request.\n')
         h = DnsProxy(mux, channel, data)
@@ -230,8 +240,9 @@ def main():
             assert(hw.pid > 0)
             (rpid, rv) = os.waitpid(hw.pid, os.WNOHANG)
             if rpid:
-                raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)
-        
+                raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n'
+                            % rv)
+
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
@@ -239,7 +250,7 @@ def main():
 
         if dnshandlers:
             now = time.time()
-            for channel,h in dnshandlers.items():
+            for channel, h in dnshandlers.items():
                 if h.timeout < now or not h.ok:
                     del dnshandlers[channel]
                     h.ok = False
